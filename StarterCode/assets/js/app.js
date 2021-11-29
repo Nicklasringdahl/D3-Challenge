@@ -1,13 +1,13 @@
 // Set up our chart
 // ================================
 var svgWidth = 960;
-var svgHeight = 500;
+var svgHeight = 600;
 
 var margin = {
   top: 20,
   right: 50,
-  bottom: 60,
-  left: 50,
+  bottom: 70,
+  left: 100,
 };
 
 var width = svgWidth - margin.left - margin.right;
@@ -29,68 +29,85 @@ var chartGroup = svg
 // Import data from the data.csv file
 // =================================
 d3.csv("data.csv").then(function (stateData) {
-  // Format the data
+  // Parse the data
   stateData.forEach(function (data) {
     data.poverty = +data.poverty;
     data.healthcare = +data.healthcare;
+    data.age = +data.age;
+    data.incomeMoe = +data.healthcare;
+    data.healthcare = +data.healthcare;
   });
 
-  // Create scaling functions
-  var xLinearScale = d3
+  var chosenXAxis = "healthcare";
+
+  function xScale(data, chosenXAxis) {
+    // create scales
+    var xLinearScale = d3
+      .scaleLinear()
+      .domain([
+        d3.min(data, (d) => d[chosenXAxis]) * 0.8,
+        d3.max(data, (d) => d[chosenXAxis]) * 1.2,
+      ])
+      .range([0, width]);
+
+    return xLinearScale;
+  }
+
+  // Create x and y axis
+  var xAxis = d3
     .scaleLinear()
-    .domain([9, d3.max(stateData, (d) => d.poverty)])
+    .domain([
+      d3.min(stateData, (d) => d.poverty) * 0.8,
+      d3.max(stateData, (d) => d.poverty) * 1.2,
+    ])
     .range([0, width]);
-
-  var yLinearScale = d3
-    .scaleLinear()
-    .domain([4, d3.max(stateData, (d) => d.healthcare)])
-    .range([height, 0]);
-
-  // Create axis functions
-  var bottomAxis = d3.axisBottom(xLinearScale);
-  var leftAxis = d3.axisLeft(yLinearScale);
-
-  // Add axis
-  chartGroup
+  svg
     .append("g")
-    .attr("transform", `translate(0, ${height})`)
-    .call(bottomAxis);
+    .attr("class", "myXaxis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(xAxis))
+    .attr("opacity", "1");
 
-  chartGroup.append("g").call(leftAxis);
+  var yAxis = d3
+    .scaleLinear()
+    .domain([0, d3.max(stateData, (d) => d.healthcare)])
+    .range([height, 0]);
+  svg.append("g").call(d3.axisLeft(yAxis));
 
   var circlesGroup = chartGroup
     .selectAll("circle")
     .data(stateData)
     .enter()
     .append("circle")
-    .attr("cx", (d) => xLinearScale(d.poverty))
-    .attr("cy", (d) => yLinearScale(d.healthcare))
+    .attr("cx", (d) => xAxis(d.poverty))
+    .attr("cy", (d) => yAxis(d.healthcare))
     .attr("r", 10)
     .attr("fill", "lightblue")
     .attr("opacity", ".5")
-    .attr("stroke", "white");
+    .attr("stroke", "white")
+    .style("fill", "#83ba31");
 
   chartGroup
     .append("text")
     .style("text-anchor", "middle")
     .style("font-family", "sans-serif")
-    .style("font-size", "8px")
+    .style("font-size", "7px")
     .selectAll("tspan")
     .data(stateData)
     .enter()
     .append("tspan")
     .attr("x", function (data) {
-      return xLinearScale(data.poverty);
+      return xAxis(data.poverty);
     })
     .attr("y", function (data) {
-      return yLinearScale(data.healthcare - 0.02);
+      return yAxis(data.healthcare - 0.02);
     })
     .text(function (data) {
       return data.abbr;
     });
 
-  // Initalize Tooltip
-  var toolTip = d3
+  // Add Tooltips
+  var Ttip = d3
     .tip()
     .attr("class", "tooltip")
     .offset([80, -70])
@@ -101,28 +118,27 @@ d3.csv("data.csv").then(function (stateData) {
       return `${d.state}<br>Population In Poverty (%): ${d.poverty}<br>Lacks Healthcare (%): ${d.healthcare}`;
     });
 
-  // tooltip in the chart
-  chartGroup.call(toolTip);
+  //
+  chartGroup.call(Ttip);
 
-  // Add an onmouseover event to display a tooltip
+  // Display the Tooltip when hovering with the mouse and hide when moving mouse.
   circlesGroup
     .on("mouseover", function (data) {
-      toolTip.show(data, this);
+      Ttip.show(data, this);
     })
 
-    // Add an on mouseout
     .on("mouseout", function (data, index) {
-      toolTip.hide(data);
+      Ttip.hide(data);
     });
 
   // Create axes labels
   chartGroup
     .append("text")
     .attr("transform", "rotate(-90)")
-    .attr("y", 0 - margin.left - 5)
-    .attr("x", 0 - height / 1.3)
+    .attr("y", 0 - margin.left)
+    .attr("x", 0 - height / 2)
     .attr("dy", "1em")
-    .attr("class", "axisText")
+    .classed("axis-text", true)
     .text("Lacks Healthcare (%)");
 
   chartGroup
